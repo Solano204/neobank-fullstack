@@ -1,0 +1,23 @@
+# Terraform state - NEVER commit these
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+
+# Variables with secrets - NEVER commit
+terraform.tfvars
+*.tfvars
+!example.tfvars
+
+# Lambda JARs and ZIPs - too large for git
+modules/lambda/jars/
+modules/lambda/zips/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

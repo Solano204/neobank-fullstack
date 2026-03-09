@@ -1,0 +1,1 @@
+{"sessionState":{"sessionAttributes":{"userId":"YOUR_REAL_COGNITO_ID_HERE"},"intent":{"name":"CheckBalance","state":"Fulfilled"}},"messages":[{"contentType":"PlainText","content":"I couldn't find your account. Please make sure you're logged in."}]}

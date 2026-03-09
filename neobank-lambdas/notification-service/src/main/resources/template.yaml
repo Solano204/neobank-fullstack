@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Notification Service Lambda
+
+Resources:
+  NotificationServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: notification-service
+      Handler: com.neobank.lambda.NotificationHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/notification-service-1.0.0.jar
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SnsTopicArn
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref SnsTopicArn
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !Ref SQSQueueArn
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !Ref SQSQueueArn
+            BatchSize: 10
+
+Parameters:
+  SnsTopicArn:
+    Type: String
+  SQSQueueArn:
+    Type: String
+
+Outputs:
+  NotificationServiceFunctionArn:
+    Value: !GetAtt NotificationServiceFunction.Arn

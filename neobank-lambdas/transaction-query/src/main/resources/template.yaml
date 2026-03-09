@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Transaction Query Lambda
+
+Resources:
+  TransactionQueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: transaction-query
+      Handler: neobank.TransactionQueryHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/transaction-query-1.0.0.jar
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:GetItem
+                - dynamodb:Scan
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}/index/*'
+      Events:
+        GetTransactions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TransactionQueryApi
+            Path: /transactions
+            Method: GET
+        OptionsTransactions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TransactionQueryApi
+            Path: /transactions
+            Method: OPTIONS
+
+  TransactionQueryApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: neobank-transaction-query-api
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET, OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Default: transactions
+
+Outputs:
+  TransactionQueryFunctionArn:
+    Value: !GetAtt TransactionQueryFunction.Arn
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${TransactionQueryApi}.execute-api.${AWS::Region}.amazonaws.com/prod/transactions'

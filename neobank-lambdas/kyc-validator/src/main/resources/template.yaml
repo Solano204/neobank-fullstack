@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: KYC Validator Lambda
+
+Resources:
+  KycValidatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: kyc-validator
+      Handler: neobank.KycValidatorHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/kyc-validator-1.0.0.jar
+      MemorySize: 1024
+      Timeout: 60
+      Environment:
+        Variables:
+          DB_URL: !Ref DBUrl
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          SNS_TOPIC_ARN: !Ref SnsTopicArn
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub 'arn:aws:s3:::${S3BucketName}/*'
+            - Effect: Allow
+              Action:
+                - rekognition:DetectFaces
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref SnsTopicArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref S3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: kyc-docs/
+
+Parameters:
+  DBUrl:
+    Type: String
+  DBUser:
+    Type: String
+  DBPassword:
+    Type: String
+    NoEcho: true
+  SnsTopicArn:
+    Type: String
+  S3BucketName:
+    Type: String
+  S3Bucket:
+    Type: String
+  SecurityGroupId:
+    Type: String
+  SubnetIds:
+    Type: CommaDelimitedList
+
+Outputs:
+  KycValidatorFunctionArn:
+    Value: !GetAtt KycValidatorFunction.Arn

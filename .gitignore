@@ -1,0 +1,107 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Environment Variables ###
+.env
+.env.local
+.env.*.local
+
+### Logs ###
+logs/
+*.log
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Maven ###
+.mvn/wrapper/maven-wrapper.jar
+
+# --- Carpetas de Dependencias ---
+**/node_modules/
+**/target/
+**/.next/
+**/dist/
+**/build/
+
+# --- Seguridad y Secretos (CRÍTICO) ---
+**/*.pem
+**/*.key
+**/.env*
+**/.terraform/
+**/*.tfstate*
+**/terraform.tfvars
+
+# --- Archivos de Sistema/IDE ---
+.idea/
+.vscode/
+*.log
+DS_Store
+
+
+# 1. Inicializa Git en la raíz
+
+git init
+
+
+
+# 2. Agrega todos los archivos (El .gitignore filtrará lo pesado y privado)
+
+git add .
+
+
+
+# 3. Primer commit oficial
+
+git commit -m "feat: initial commit neobank monorepo structure"
+
+
+
+# 4. Configura la rama principal
+
+git branch -M main
+
+
+
+# 5. Conecta con tu nuevo repo (Copia la URL que te dio GitHub)
+
+# Reemplaza 'TU_USUARIO' por tu nombre real de GitHub
+
+git remote add origin https://github.com/Solano204/neobank-fullstack.git
+
+
+
+# 6. Sube los archivos
+
+git push -u origin main

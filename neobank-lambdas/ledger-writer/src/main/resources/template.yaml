@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Ledger Writer Lambda
+
+Resources:
+  LedgerWriterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ledger-writer
+      Handler: com.neobank.lambda.LedgerWriterHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/ledger-writer-1.0.0.jar
+      MemorySize: 512
+      Timeout: 60
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}'
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !Ref SQSQueueArn
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !Ref SQSQueueArn
+            BatchSize: 10
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Default: transactions
+  SQSQueueArn:
+    Type: String
+
+Outputs:
+  LedgerWriterFunctionArn:
+    Value: !GetAtt LedgerWriterFunction.Arn

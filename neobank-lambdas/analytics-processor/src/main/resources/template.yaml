@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Analytics Processor Lambda
+
+Resources:
+  AnalyticsProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: analytics-processor
+      Handler: neobank.AnalyticsHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/analytics-processor-1.0.0.jar
+      MemorySize: 256
+      Timeout: 30
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !Ref SQSQueueArn
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !Ref SQSQueueArn
+            BatchSize: 10
+
+Parameters:
+  SQSQueueArn:
+    Type: String
+
+Outputs:
+  AnalyticsProcessorFunctionArn:
+    Value: !GetAtt AnalyticsProcessorFunction.Arn

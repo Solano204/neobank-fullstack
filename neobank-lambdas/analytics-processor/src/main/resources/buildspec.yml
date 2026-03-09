@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  build:
+    commands:
+      - echo Building analytics-processor...
+      - mvn clean package
+
+artifacts:
+  files:
+    - target/analytics-processor-1.0.0.jar
+    - template.yaml
+  name: analytics-processor-$(date +%Y%m%d-%H%M%S)
+
+cache:
+  paths:
+    - '/root/.m2/**/*'

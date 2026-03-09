@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  build:
+    commands:
+      - echo Building kyc-validator...
+      - mvn clean package
+
+artifacts:
+  files:
+    - target/kyc-validator-1.0.0.jar
+    - template.yaml
+  name: kyc-validator-$(date +%Y%m%d-%H%M%S)
+
+cache:
+  paths:
+    - '/root/.m2/**/*'

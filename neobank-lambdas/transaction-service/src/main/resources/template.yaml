@@ -1,0 +1,31 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  pre_build:
+    commands:
+      - echo Build started on `date`
+      - echo Downloading dependencies...
+
+  build:
+    commands:
+      - echo Building the application...
+      - mvn clean package
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Packaging deployment artifact...
+
+artifacts:
+  files:
+    - target/transaction-service-1.0.0.jar
+    - template.yaml
+  name: transaction-service-$(date +%Y%m%d-%H%M%S)
+
+cache:
+  paths:
+    - '/root/.m2/**/*'

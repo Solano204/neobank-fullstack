@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: NeoBank AI Chatbot - Lex Fulfillment Lambda
+
+Resources:
+  LexFulfillmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: lex-fulfillment
+      Handler: neobank.LexFulfillmentHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/lex-fulfillment-1.0.0.jar
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DynamoDBTableName
+          DB_URL: !Ref DBUrl
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}/index/*'
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Default: transactions
+  DBUrl:
+    Type: String
+  DBUser:
+    Type: String
+  DBPassword:
+    Type: String
+    NoEcho: true
+
+Outputs:
+  LexFulfillmentFunctionArn:
+    Value: !GetAtt LexFulfillmentFunction.Arn
+    Description: Use this ARN when configuring your Lex bot fulfillment

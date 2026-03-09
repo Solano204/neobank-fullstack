@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NeoBank — Project Structure</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #030712;
+    --bg2:      #0e1830;
+    --bg3:      #152240;
+    --border:   rgba(255,255,255,0.07);
+    --cyan:     #22d3ee;
+    --emerald:  #34d399;
+    --amber:    #fbbf24;
+    --rose:     #fb7185;
+    --violet:   #a78bfa;
+    --slate:    #94a3b8;
+    --slate2:   #64748b;
+    --white:    #f1f5f9;
+  }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    max-width: 860px;
+    margin: 0 auto 48px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #22d3ee, #34d399);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 22px;
+    color: #030712;
+    box-shadow: 0 0 28px rgba(34,211,238,0.35);
+    flex-shrink: 0;
+  }
+  .header-text h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 22px;
+    color: var(--white);
+  }
+  .header-text p { font-size: 12px; color: var(--slate2); margin-top: 2px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 6px;
+    margin-left: 8px;
+  }
+  .badge-cyan   { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
+  .badge-emerald{ background: rgba(52,211,153,.12); color: #34d399; border: 1px solid rgba(52,211,153,.25); }
+  .badge-violet { background: rgba(167,139,250,.12); color: #a78bfa; border: 1px solid rgba(167,139,250,.25); }
+  .badge-amber  { background: rgba(251,191,36,.12);  color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
+
+  /* ── Layout ── */
+  .layout {
+    max-width: 860px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media(max-width: 640px) { .layout { grid-template-columns: 1fr; } }
+
+  .full { grid-column: 1 / -1; }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .panel-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .panel-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 13px;
+    color: var(--white);
+  }
+  .panel-header span { font-size: 10px; color: var(--slate2); margin-left: auto; }
+  .panel-body { padding: 6px 0 8px; }
+
+  /* ── File row ── */
+  .file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 18px;
+    cursor: default;
+    transition: background .15s;
+    position: relative;
+  }
+  .file:hover { background: rgba(255,255,255,0.03); }
+
+  .indent-0 { padding-left: 18px; }
+  .indent-1 { padding-left: 34px; }
+  .indent-2 { padding-left: 50px; }
+  .indent-3 { padding-left: 66px; }
+
+  /* tree lines */
+  .file.indent-1::before,
+  .file.indent-2::before,
+  .file.indent-3::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--d) - 8px);
+    top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+  .file.indent-1 { --d: 34px; }
+  .file.indent-2 { --d: 50px; }
+  .file.indent-3 { --d: 66px; }
+
+  .file-icon { font-size: 14px; flex-shrink: 0; width: 18px; text-align: center; }
+
+  .file-name {
+    font-size: 12.5px; font-weight: 500;
+    color: var(--white);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .folder > .file-name { color: var(--slate); }
+
+  .file-tag {
+    font-size: 9.5px; font-weight: 600;
+    padding: 2px 6px; border-radius: 5px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .tag-page    { background: rgba(34,211,238,.1);  color: #22d3ee; }
+  .tag-layout  { background: rgba(167,139,250,.1); color: #a78bfa; }
+  .tag-hook    { background: rgba(251,191,36,.1);  color: #fbbf24; }
+  .tag-lib     { background: rgba(52,211,153,.1);  color: #34d399; }
+  .tag-config  { background: rgba(148,163,184,.1); color: #94a3b8; }
+  .tag-style   { background: rgba(251,191,36,.1);  color: #fbbf24; }
+  .tag-comp    { background: rgba(251,113,133,.1); color: #fb7185; }
+  .tag-env     { background: rgba(167,139,250,.1); color: #a78bfa; }
+  .tag-mw      { background: rgba(251,113,133,.1); color: #fb7185; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    max-width: 860px;
+    margin: 28px auto 0;
+    display: flex; flex-wrap: wrap; gap: 10px;
+    padding: 18px 22px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .legend-title {
+    width: 100%;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 11px;
+    color: var(--slate2);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 4px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--slate);
+  }
+
+  /* ── Command box ── */
+  .cmd-box {
+    max-width: 860px;
+    margin: 16px auto 0;
+    background: #070d1f;
+    border: 1px solid rgba(34,211,238,.2);
+    border-radius: 14px;
+    padding: 18px 22px;
+  }
+  .cmd-box p { font-size: 10px; color: var(--slate2); margin-bottom: 10px; font-family: 'Syne', sans-serif; text-transform: uppercase; letter-spacing: .06em; }
+  .cmd { font-size: 12.5px; color: var(--cyan); margin: 4px 0; }
+  .cmd span { color: var(--slate2); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">N</div>
+  <div class="header-text">
+    <h1>NeoBank Frontend — File Structure
+      <span class="badge badge-cyan">Next.js 15</span>
+      <span class="badge badge-emerald">React 19</span>
+      <span class="badge badge-violet">Tailwind v4</span>
+    </h1>
+    <p>32 files · Copy each file exactly as shown below into your project</p>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── CONFIG FILES ── -->
+  <div class="panel full">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(148,163,184,.1)">⚙️</div>
+      <h2>Root — Config & Setup</h2>
+      <span>7 files · create these first</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">neobank-frontend/</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">package.json</span><span class="file-tag tag-config">CONFIG</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">next.config.ts</span><span class="file-tag tag-config">CONFIG</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">postcss.config.mjs</span><span class="file-tag tag-config">CONFIG</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">tsconfig.json</span><span class="file-tag tag-config">CONFIG</span></div>
+      <div class="file indent-1"><span class="file-icon">🔒</span><span class="file-name">.env.example</span><span class="file-tag tag-env">ENV</span></div>
+      <div class="file indent-1"><span class="file-icon">🛡️</span><span class="file-name">middleware.ts</span><span class="file-tag tag-mw">MIDDLEWARE</span></div>
+    </div>
+  </div>
+
+  <!-- ── APP FOLDER ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(167,139,250,.1)">🗂️</div>
+      <h2>app/ — Root App</h2>
+      <span>3 files</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">app/</span></div>
+      <div class="file indent-1"><span class="file-icon">🎨</span><span class="file-name">globals.css</span><span class="file-tag tag-style">STYLE</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">layout.tsx</span><span class="file-tag tag-layout">LAYOUT</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">PAGE</span></div>
+    </div>
+  </div>
+
+  <!-- ── LIB / HOOKS ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(52,211,153,.1)">🔧</div>
+      <h2>lib/ &amp; hooks/</h2>
+      <span>4 files</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">lib/</span></div>
+      <div class="file indent-1"><span class="file-icon">🌐</span><span class="file-name">api.ts</span><span class="file-tag tag-lib">API · ALL ENDPOINTS</span></div>
+      <div class="file indent-1"><span class="file-icon">📐</span><span class="file-name">types.ts</span><span class="file-tag tag-lib">TYPES</span></div>
+      <div class="file indent-1"><span class="file-icon">🛠️</span><span class="file-name">utils.ts</span><span class="file-tag tag-lib">UTILS</span></div>
+      <div class="divider"></div>
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">hooks/</span></div>
+      <div class="file indent-1"><span class="file-icon">🪝</span><span class="file-name">useAuth.tsx</span><span class="file-tag tag-hook">HOOK · CONTEXT</span></div>
+    </div>
+  </div>
+
+  <!-- ── COMPONENTS ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(251,113,133,.1)">🧩</div>
+      <h2>components/</h2>
+      <span>4 files</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">components/</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">ui/</span></div>
+      <div class="file indent-2"><span class="file-icon">🔘</span><span class="file-name">Button.tsx</span><span class="file-tag tag-comp">COMP</span></div>
+      <div class="file indent-2"><span class="file-icon">🃏</span><span class="file-name">Card.tsx</span><span class="file-tag tag-comp">COMP</span></div>
+      <div class="file indent-2"><span class="file-icon">✏️</span><span class="file-name">Input.tsx</span><span class="file-tag tag-comp">COMP</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">layout/</span></div>
+      <div class="file indent-2"><span class="file-icon">📋</span><span class="file-name">Sidebar.tsx</span><span class="file-tag tag-comp">COMP</span></div>
+    </div>
+  </div>
+
+  <!-- ── AUTH PAGES ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(251,191,36,.1)">🔐</div>
+      <h2>app/auth/ — Auth Pages</h2>
+      <span>5 pages</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">app/auth/</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">login/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">POST /api/auth/login</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">signup/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">POST /api/auth/signup</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">verify-email/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">POST /api/auth/verify-email</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">forgot-password/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">POST /api/auth/forgot-password</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">reset-password/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">POST /api/auth/reset-password</span></div>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD PAGES ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon" style="background:rgba(34,211,238,.1)">🏦</div>
+      <h2>app/dashboard/ — Protected</h2>
+      <span>10 files</span>
+    </div>
+    <div class="panel-body">
+      <div class="file indent-0"><span class="file-icon">📁</span><span class="file-name folder">app/dashboard/</span></div>
+      <div class="file indent-1"><span class="file-icon">🔒</span><span class="file-name">layout.tsx</span><span class="file-tag tag-layout">AUTH GUARD</span></div>
+      <div class="file indent-1"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">HOME · Balance + Txs</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">transfer/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Lambda transfer-service</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">transactions/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Lambda transaction-query</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">kyc/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">KYC · S3 Upload</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">analytics/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Lambda analytics-proc.</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">contacts/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">EC2 /api/contacts</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">security/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Lambda fraud-checker + MFA</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">settings/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Profile · Password</span></div>
+      <div class="file indent-1"><span class="file-icon">📁</span><span class="file-name folder">support/</span></div>
+      <div class="file indent-2"><span class="file-icon">📄</span><span class="file-name">page.tsx</span><span class="file-tag tag-page">Lambda lex-fulfillment</span></div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-title">Tag Legend</div>
+  <div class="legend-item"><span class="file-tag tag-config">CONFIG</span> Root config file — create once</div>
+  <div class="legend-item"><span class="file-tag tag-env">ENV</span> Environment variables</div>
+  <div class="legend-item"><span class="file-tag tag-mw">MIDDLEWARE</span> Route protection (runs on every request)</div>
+  <div class="legend-item"><span class="file-tag tag-style">STYLE</span> Global CSS + Tailwind v4 theme</div>
+  <div class="legend-item"><span class="file-tag tag-layout">LAYOUT</span> Wraps child pages — required for each route group</div>
+  <div class="legend-item"><span class="file-tag tag-page">PAGE</span> Route page — each folder = one URL</div>
+  <div class="legend-item"><span class="file-tag tag-lib">LIB</span> Shared logic: API calls, types, utilities</div>
+  <div class="legend-item"><span class="file-tag tag-hook">HOOK</span> React context / custom hook</div>
+  <div class="legend-item"><span class="file-tag tag-comp">COMP</span> Reusable UI component</div>
+</div>
+
+<!-- Commands -->
+<div class="cmd-box">
+  <p>📦 Setup commands — run in order</p>
+  <div class="cmd">$ <span>cd</span> neobank-frontend</div>
+  <div class="cmd">$ <span>cp</span> .env.example .env.local &nbsp;&nbsp;<span># then fill in EC2 IP + API Gateway URL</span></div>
+  <div class="cmd">$ <span>npm</span> install</div>
+  <div class="cmd">$ <span>npm</span> run dev &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span># starts on http://localhost:3000</span></div>
+</div>
+
+</body>
+</html>
