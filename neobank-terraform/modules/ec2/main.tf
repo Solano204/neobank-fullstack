@@ -6,7 +6,7 @@ resource "aws_security_group" "ec2" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.ssh_allowed_cidr]
     description = "SSH"
   }
 
@@ -49,17 +49,17 @@ resource "aws_instance" "backend" {
   }
 
   user_data = templatefile("${path.module}/userdata.sh", {
-    db_host              = var.db_host
-    db_password          = var.db_password
-    aws_access_key_id    = var.aws_access_key_id
+    db_host               = var.db_host
+    db_password           = var.db_password
+    aws_access_key_id     = var.aws_access_key_id
     aws_secret_access_key = var.aws_secret_access_key
-    cognito_user_pool_id = var.cognito_user_pool_id
-    cognito_client_id    = var.cognito_client_id
-    s3_bucket_name       = var.s3_bucket_name
-    sqs_queue_url        = var.sqs_queue_url
-    ses_from_email       = var.ses_from_email
-    jwt_secret           = var.jwt_secret
-    cors_allowed_origins = var.cors_allowed_origins
+    cognito_user_pool_id  = var.cognito_user_pool_id
+    cognito_client_id     = var.cognito_client_id
+    s3_bucket_name        = var.s3_bucket_name
+    sqs_queue_url         = var.sqs_queue_url
+    ses_from_email        = var.ses_from_email
+    jwt_secret            = var.jwt_secret
+    cors_allowed_origins  = var.cors_allowed_origins
   })
 
   tags = { Name = "${var.project_name}-backend" }

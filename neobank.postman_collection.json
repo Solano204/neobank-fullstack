@@ -1,0 +1,385 @@
+{
+  "info": {
+    "name": "neobank",
+    "description": "Two API surfaces: neobank-backend (Spring, localhost:8080) for auth/accounts/contacts/KYC/etc, and the Cognito-authorized Lambda/API-Gateway transaction endpoints (transaction_api_url). Run 'Signup' then 'Login' first (auto-captures the Cognito access token into {{accessToken}}, used as a Bearer token by every other request in both sections) - the same token authorizes both API surfaces since both validate against the same Cognito user pool.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "backend_url", "value": "http://localhost:8080" },
+    { "key": "transaction_api_url", "value": "https://YOUR-API-GATEWAY-ID.execute-api.us-east-1.amazonaws.com/prod", "description": "From neobank-terraform's api-gateway module output" },
+    { "key": "email", "value": "jdoe@example.com" },
+    { "key": "password", "value": "Str0ngPassword!1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "accountId", "value": "" },
+    { "key": "accountNumber", "value": "" },
+    { "key": "toAccountNumber", "value": "" },
+    { "key": "contactId", "value": "" },
+    { "key": "documentId", "value": "" },
+    { "key": "s3Key", "value": "" },
+    { "key": "ticketId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"fullName\": \"Jane Doe\",\n  \"phone\": \"+525512345678\"\n}"
+            },
+            "url": { "raw": "{{backend_url}}/api/auth/signup", "host": ["{{backend_url}}"], "path": ["api", "auth", "signup"] },
+            "description": "Creates a Cognito user - check email for the verification code, then use 'Verify email' before logging in."
+          }
+        },
+        {
+          "name": "Verify email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": { "raw": "{{backend_url}}/api/auth/verify-email", "host": ["{{backend_url}}"], "path": ["api", "auth", "verify-email"] }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{backend_url}}/api/auth/login", "host": ["{{backend_url}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const json = pm.response.json();",
+              "if (json.data) {",
+              "    if (json.data.accessToken) pm.collectionVariables.set('accessToken', json.data.accessToken);",
+              "    if (json.data.refreshToken) pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+              "}",
+              "pm.test('Login succeeded', function () { pm.response.to.have.status(200); });"
+            ] }
+          }]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{backend_url}}/api/auth/refresh-token", "host": ["{{backend_url}}"], "path": ["api", "auth", "refresh-token"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{backend_url}}/api/auth/logout", "host": ["{{backend_url}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Get my accounts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/accounts", "host": ["{{backend_url}}"], "path": ["api", "accounts"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.length) {",
+              "    pm.collectionVariables.set('accountId', json.data[0].id);",
+              "    pm.collectionVariables.set('accountNumber', json.data[0].accountNumber);",
+              "}"
+            ] }
+          }]
+        },
+        {
+          "name": "Get account details",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/accounts/{{accountId}}", "host": ["{{backend_url}}"], "path": ["api", "accounts", "{{accountId}}"] }
+          }
+        },
+        {
+          "name": "Get account balance",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/accounts/{{accountId}}/balance", "host": ["{{backend_url}}"], "path": ["api", "accounts", "{{accountId}}", "balance"] }
+          }
+        },
+        {
+          "name": "Freeze account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Suspicious activity reported by customer\"\n}" },
+            "url": { "raw": "{{backend_url}}/api/accounts/{{accountId}}/freeze", "host": ["{{backend_url}}"], "path": ["api", "accounts", "{{accountId}}", "freeze"] }
+          }
+        },
+        {
+          "name": "Unfreeze account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Confirmed with customer\"\n}" },
+            "url": { "raw": "{{backend_url}}/api/accounts/{{accountId}}/unfreeze", "host": ["{{backend_url}}"], "path": ["api", "accounts", "{{accountId}}", "unfreeze"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contacts",
+      "item": [
+        {
+          "name": "Add contact",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Recipient\",\n  \"accountNumber\": \"{{toAccountNumber}}\",\n  \"favorite\": false\n}" },
+            "url": { "raw": "{{backend_url}}/api/contacts", "host": ["{{backend_url}}"], "path": ["api", "contacts"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.collectionVariables.set('contactId', json.data.id);"
+            ] }
+          }]
+        },
+        {
+          "name": "List contacts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/contacts", "host": ["{{backend_url}}"], "path": ["api", "contacts"] }
+          }
+        },
+        {
+          "name": "Toggle favorite",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{backend_url}}/api/contacts/{{contactId}}/favorite", "host": ["{{backend_url}}"], "path": ["api", "contacts", "{{contactId}}", "favorite"] }
+          }
+        },
+        {
+          "name": "Delete contact",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{backend_url}}/api/contacts/{{contactId}}", "host": ["{{backend_url}}"], "path": ["api", "contacts", "{{contactId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "KYC",
+      "item": [
+        {
+          "name": "Get upload URL",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{backend_url}}/api/kyc/upload-url?fileName=id-front.jpg&documentType=ID_FRONT",
+              "host": ["{{backend_url}}"], "path": ["api", "kyc", "upload-url"],
+              "query": [{ "key": "fileName", "value": "id-front.jpg" }, { "key": "documentType", "value": "ID_FRONT" }]
+            },
+            "description": "Fixed this pass (see REST API notes): the response now actually includes s3Key, and the key itself is server-generated (UUID + validated extension) rather than built from the raw client-supplied fileName."
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.s3Key) pm.collectionVariables.set('s3Key', json.data.s3Key);",
+              "pm.test('Response includes s3Key', function () {",
+              "    pm.expect(pm.response.json().data.s3Key).to.not.be.undefined;",
+              "});"
+            ] }
+          }]
+        },
+        {
+          "name": "Upload to S3 (PUT, from the returned uploadUrl)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "image/jpeg" }],
+            "body": { "mode": "file", "file": {} },
+            "url": { "raw": "PASTE_THE_uploadUrl_FROM_THE_PREVIOUS_RESPONSE_HERE", "host": ["PASTE_THE_uploadUrl_FROM_THE_PREVIOUS_RESPONSE_HERE"] },
+            "description": "Postman can't script a dynamic file body automatically - copy the uploadUrl from 'Get upload URL', select a real .jpg file in the Body tab, then send. Content-Type must be exactly image/jpeg (the presigned URL's signature requires it)."
+          }
+        },
+        {
+          "name": "Verify document",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{backend_url}}/api/kyc/verify?documentType=ID_FRONT&s3Key={{s3Key}}",
+              "host": ["{{backend_url}}"], "path": ["api", "kyc", "verify"],
+              "query": [{ "key": "documentType", "value": "ID_FRONT" }, { "key": "s3Key", "value": "{{s3Key}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get KYC status",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/kyc/status", "host": ["{{backend_url}}"], "path": ["api", "kyc", "status"] }
+          }
+        },
+        {
+          "name": "Delete document",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{backend_url}}/api/kyc/documents/{{documentId}}", "host": ["{{backend_url}}"], "path": ["api", "kyc", "documents", "{{documentId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Spending breakdown",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/analytics/spending", "host": ["{{backend_url}}"], "path": ["api", "analytics", "spending"] },
+            "description": "Computed live from DynamoDB transaction history, not mocked (per PORTFOLIO.md - worth spot-checking against a real transfer made via the Transactions folder below)."
+          }
+        },
+        {
+          "name": "Balance forecast",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/analytics/forecast", "host": ["{{backend_url}}"], "path": ["api", "analytics", "forecast"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{backend_url}}/api/notifications?page=0&size=20",
+              "host": ["{{backend_url}}"], "path": ["api", "notifications"],
+              "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "Mark all as read",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{backend_url}}/api/notifications/read-all", "host": ["{{backend_url}}"], "path": ["api", "notifications", "read-all"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security",
+      "item": [
+        {
+          "name": "Get active sessions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/security/sessions", "host": ["{{backend_url}}"], "path": ["api", "security", "sessions"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Support",
+      "item": [
+        {
+          "name": "Create ticket",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"subject\": \"Can't see my last transfer\",\n  \"description\": \"Transferred to a contact yesterday, not showing in history yet.\",\n  \"priority\": \"MEDIUM\"\n}" },
+            "url": { "raw": "{{backend_url}}/api/support/tickets", "host": ["{{backend_url}}"], "path": ["api", "support", "tickets"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const json = pm.response.json();",
+              "if (json.data && json.data.id) pm.collectionVariables.set('ticketId', json.data.id);"
+            ] }
+          }]
+        },
+        {
+          "name": "List tickets",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{backend_url}}/api/support/tickets", "host": ["{{backend_url}}"], "path": ["api", "support", "tickets"] }
+          }
+        },
+        {
+          "name": "Chat assistant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"What's my account balance?\"\n}" },
+            "url": { "raw": "{{backend_url}}/api/support/chat", "host": ["{{backend_url}}"], "path": ["api", "support", "chat"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions (Lambda / API Gateway)",
+      "item": [
+        {
+          "name": "Transfer funds",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}", "description": "Fixed this pass (see Async Event notes) - without this header, a client retry after a timeout could move the same money twice. Postman regenerates {{$guid}} fresh per send, so re-sending this exact request manually is itself a real retry test." }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_account\": \"{{accountNumber}}\",\n  \"to_account\": \"{{toAccountNumber}}\",\n  \"amount\": 100.00,\n  \"description\": \"Test transfer\"\n}"
+            },
+            "url": { "raw": "{{transaction_api_url}}/transactions", "host": ["{{transaction_api_url}}"], "path": ["transactions"] },
+            "description": "Requires the Cognito access token from Login above - API Gateway's COGNITO_USER_POOLS authorizer validates it directly, same user pool the backend uses."
+          }
+        },
+        {
+          "name": "Get transaction history",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{transaction_api_url}}/transactions?account={{accountNumber}}&limit=20&page=1",
+              "host": ["{{transaction_api_url}}"], "path": ["transactions"],
+              "query": [{ "key": "account", "value": "{{accountNumber}}" }, { "key": "limit", "value": "20" }, { "key": "page", "value": "1" }]
+            },
+            "description": "Queries both DynamoDB GSIs (sent and received) and merges - see NoSQL notes. Amounts now come back as exact-precision numbers (fixed this pass), not float-rounded ones."
+          }
+        }
+      ]
+    }
+  ]
+}

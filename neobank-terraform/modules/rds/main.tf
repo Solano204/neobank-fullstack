@@ -31,7 +31,7 @@ resource "aws_db_instance" "postgres" {
   instance_class          = "db.t3.micro"
   allocated_storage       = 20
   storage_type            = "gp2"
-  storage_encrypted       = false  # ← CHANGED: not allowed on free tier
+  storage_encrypted       = false # ← CHANGED: not allowed on free tier
   db_name                 = "neobank_db"
   username                = "postgres"
   password                = var.db_password
@@ -39,6 +39,6 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids  = [aws_security_group.rds.id]
   publicly_accessible     = false
   skip_final_snapshot     = true
-  backup_retention_period = 0      # ← CHANGED: 0 disables backups on free tier
-  tags = { Name = "${var.project_name}-db" }
+  backup_retention_period = 0 # ← CHANGED: 0 disables backups on free tier
+  tags                    = { Name = "${var.project_name}-db" }
 }

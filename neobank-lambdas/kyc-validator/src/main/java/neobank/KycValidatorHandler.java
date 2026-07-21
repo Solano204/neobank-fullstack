@@ -29,14 +29,16 @@ public class KycValidatorHandler implements RequestHandler<S3Event, String> {
     private static HikariDataSource dataSource;
 
     static {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(DB_URL);
-        config.setUsername(DB_USER);
-        config.setPassword(DB_PASSWORD);
-        config.setMaximumPoolSize(5);
-        config.setMinimumIdle(1);
-        config.setConnectionTimeout(30000);
-        dataSource = new HikariDataSource(config);
+        if (DB_URL != null && !DB_URL.isEmpty()) {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(DB_URL);
+            config.setUsername(DB_USER);
+            config.setPassword(DB_PASSWORD);
+            config.setMaximumPoolSize(5);
+            config.setMinimumIdle(1);
+            config.setConnectionTimeout(30000);
+            dataSource = new HikariDataSource(config);
+        }
     }
 
     @Override
@@ -111,7 +113,7 @@ public class KycValidatorHandler implements RequestHandler<S3Event, String> {
         }
     }
 
-    private String buildRejectionReason(double confidence, boolean eyesOpen,
+    String buildRejectionReason(double confidence, boolean eyesOpen,
                                         double sharpness, double brightness) {
         if (confidence <= 90.0) {
             return "Face detection confidence too low. Please ensure clear visibility of face.";
@@ -128,7 +130,7 @@ public class KycValidatorHandler implements RequestHandler<S3Event, String> {
         return "Image quality does not meet requirements.";
     }
 
-    private String extractUserIdFromKey(String s3Key) {
+    String extractUserIdFromKey(String s3Key) {
         String[] parts = s3Key.split("/");
         if (parts.length >= 2) {
             return parts[1];

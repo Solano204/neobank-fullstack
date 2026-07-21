@@ -3,6 +3,16 @@ resource "aws_api_gateway_rest_api" "main" {
   description = "NeoBank Transaction API"
 }
 
+# ─── Cognito authorizer — same user pool the Spring backend validates
+# against, so a caller needs a real signed-in session either way.
+resource "aws_api_gateway_authorizer" "cognito" {
+  name            = "${var.project_name}-cognito-authorizer"
+  rest_api_id     = aws_api_gateway_rest_api.main.id
+  type            = "COGNITO_USER_POOLS"
+  provider_arns   = [var.cognito_user_pool_arn]
+  identity_source = "method.request.header.Authorization"
+}
+
 # ─── /transactions resource ───────────────────────────────────
 resource "aws_api_gateway_resource" "transactions" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -15,7 +25,8 @@ resource "aws_api_gateway_method" "post_transactions" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.transactions.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
 }
 
 resource "aws_api_gateway_integration" "post_transactions" {
@@ -40,7 +51,8 @@ resource "aws_api_gateway_method" "get_transactions" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.transactions.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
 }
 
 resource "aws_api_gateway_integration" "get_transactions" {
@@ -69,10 +81,10 @@ resource "aws_api_gateway_method" "options_transactions" {
 }
 
 resource "aws_api_gateway_integration" "options_transactions" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.transactions.id
-  http_method = aws_api_gateway_method.options_transactions.http_method
-  type        = "MOCK"
+  rest_api_id       = aws_api_gateway_rest_api.main.id
+  resource_id       = aws_api_gateway_resource.transactions.id
+  http_method       = aws_api_gateway_method.options_transactions.http_method
+  type              = "MOCK"
   request_templates = { "application/json" = "{\"statusCode\": 200}" }
 }
 

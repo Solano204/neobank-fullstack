@@ -3,6 +3,8 @@ package neobank;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
+
 public class TransactionResponse {
 
     private String status;
@@ -16,17 +18,17 @@ public class TransactionResponse {
     @JsonProperty("to_account")
     private String toAccount;
 
-    private Double amount;
+    private BigDecimal amount;
 
     @JsonProperty("new_balance")
-    private Double newBalance;
+    private BigDecimal newBalance;
 
     private Long timestamp;
 
     public TransactionResponse() {}
 
     public TransactionResponse(String status, String transactionId, String fromAccount,
-                               String toAccount, Double amount, Double newBalance) {
+                               String toAccount, BigDecimal amount, BigDecimal newBalance) {
         this.status = status;
         this.transactionId = transactionId;
         this.fromAccount = fromAccount;
@@ -48,11 +50,11 @@ public class TransactionResponse {
     public String getToAccount() { return toAccount; }
     public void setToAccount(String toAccount) { this.toAccount = toAccount; }
 
-    public Double getAmount() { return amount; }
-    public void setAmount(Double amount) { this.amount = amount; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
-    public Double getNewBalance() { return newBalance; }
-    public void setNewBalance(Double newBalance) { this.newBalance = newBalance; }
+    public BigDecimal getNewBalance() { return newBalance; }
+    public void setNewBalance(BigDecimal newBalance) { this.newBalance = newBalance; }
 
     public Long getTimestamp() { return timestamp; }
     public void setTimestamp(Long timestamp) { this.timestamp = timestamp; }

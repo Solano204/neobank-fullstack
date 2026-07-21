@@ -7,7 +7,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: notification-service
-      Handler: com.neobank.lambda.NotificationHandler::handleRequest
+      Handler: neobank.NotificationHandler::handleRequest
       Runtime: java17
       CodeUri: target/notification-service-1.0.0.jar
       MemorySize: 256

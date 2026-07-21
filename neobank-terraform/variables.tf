@@ -45,3 +45,8 @@ variable "jwt_secret" {
 variable "cors_allowed_origins" {
   default = "http://localhost:3000"
 }
+
+# Doc 7: no default on purpose - see modules/ec2/variables.tf.
+variable "ssh_allowed_cidr" {
+  description = "CIDR allowed to SSH into the backend EC2 instance - never 0.0.0.0/0"
+}

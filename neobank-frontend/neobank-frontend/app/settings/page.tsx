@@ -10,7 +10,7 @@ import { authApi }         from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuthStore }    from "@/lib/store/authStore";
 import type { User, UserSettings } from "@/types";
-import { User as UserIcon, Bell, Palette, Lock, LogOut, Save, Check } from "lucide-react";
+import { User as UserIcon, Bell, Palette, Lock, LogOut, Save, Check, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function SettingsPage() {
@@ -20,6 +20,9 @@ export default function SettingsPage() {
   const [pwModal,  setPwModal]    = useState(false);
   const [pw,       setPw]         = useState({ current: "", new: "", confirm: "" });
   const [saving,   setSaving]     = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting]   = useState(false);
 
   useEffect(() => {
     if (user) setProfile({ fullName: user.fullName, phone: user.phone, city: user.city, state: user.state });
@@ -54,6 +57,19 @@ export default function SettingsPage() {
       setPwModal(false);
       setPw({ current: "", new: "", confirm: "" });
     } catch (err) { toast.error(getErrorMessage(err)); }
+  }
+
+  async function deleteAccount() {
+    if (!deletePassword) { toast.error("Ingresa tu contraseña para confirmar"); return; }
+    setDeleting(true);
+    try {
+      await usersApi.deleteAccount(deletePassword);
+      toast.success("Cuenta eliminada. Tienes 30 días para cancelar la eliminación.");
+      setDeleteModal(false);
+      logout();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally { setDeleting(false); }
   }
 
   function toggle(key: keyof UserSettings) {
@@ -160,6 +176,17 @@ export default function SettingsPage() {
               <Button variant="danger" size="sm" onClick={logout}><LogOut size={14} /> Salir</Button>
             </div>
           </Card>
+
+          {/* Danger zone */}
+          <Card className="border-red-500/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-white">Eliminar cuenta</p>
+                <p className="text-xs text-slate-500 mt-0.5">Tendrás 30 días para cancelar antes de que se elimine permanentemente</p>
+              </div>
+              <Button variant="danger" size="sm" onClick={() => setDeleteModal(true)}><Trash2 size={14} /> Eliminar</Button>
+            </div>
+          </Card>
         </div>
       </div>
 
@@ -169,6 +196,17 @@ export default function SettingsPage() {
           <Input label="Nueva contraseña"    type="password" value={pw.new}     onChange={e => setPw({ ...pw, new:     e.target.value })} />
           <Input label="Confirmar contraseña" type="password" value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} />
           <Button onClick={changePw} fullWidth>Actualizar contraseña</Button>
+        </div>
+      </Modal>
+
+      <Modal open={deleteModal} onClose={() => setDeleteModal(false)} title="Eliminar cuenta">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-400">
+            Esta acción programa la eliminación de tu cuenta. Tendrás 30 días para cancelarla antes de que sea permanente.
+            Ingresa tu contraseña para confirmar.
+          </p>
+          <Input label="Contraseña" type="password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} />
+          <Button variant="danger" onClick={deleteAccount} loading={deleting} fullWidth>Eliminar mi cuenta</Button>
         </div>
       </Modal>
     </>

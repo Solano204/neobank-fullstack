@@ -3,20 +3,29 @@ package neobank.presentation.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import neobank.application.dto.response.ApiResponse;
+import neobank.application.dto.response.SupportTicketResponse;
+import neobank.application.usecase.support.ChatSupportUseCase;
+import neobank.application.usecase.support.CreateSupportTicketUseCase;
+import neobank.application.usecase.support.GetSupportTicketsUseCase;
 import neobank.infrastructure.security.UserPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/support")
 @RequiredArgsConstructor
 @Slf4j
 public class SupportController {
+
+    private final ChatSupportUseCase chatSupportUseCase;
+    private final CreateSupportTicketUseCase createSupportTicketUseCase;
+    private final GetSupportTicketsUseCase getSupportTicketsUseCase;
 
     @PostMapping("/chat")
     public ResponseEntity<ApiResponse<Map<String, Object>>> chat(@AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -26,15 +35,14 @@ public class SupportController {
         String message = request.get("message");
         String sessionId = request.getOrDefault("session_id", UUID.randomUUID().toString());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("bot_response", "I'm here to help! For specific transaction issues, please contact support.");
-        response.put("session_id", sessionId);
-        response.put("intent", "GeneralQuery");
-        response.put("confidence", 0.75);
-        response.put("suggested_actions", List.of(
-                Map.of("label", "View Balance", "action", "navigate", "target", "/accounts/balance"),
-                Map.of("label", "Contact Support", "action", "navigate", "target", "/support/ticket")
-        ));
+        ChatSupportUseCase.Result result = chatSupportUseCase.execute(userPrincipal.getId(), message);
+
+        Map<String, Object> response = Map.of(
+                "bot_response", result.message(),
+                "session_id", sessionId,
+                "intent", result.intent(),
+                "confidence", result.confidence()
+        );
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -43,7 +51,7 @@ public class SupportController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getFaq() {
         log.info("Get FAQ request");
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new java.util.HashMap<>();
         response.put("categories", List.of(
                 Map.of(
                         "id", "transfers",
@@ -61,28 +69,26 @@ public class SupportController {
     }
 
     @PostMapping("/ticket")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createTicket(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                                         @RequestBody Map<String, String> request) {
+    public ResponseEntity<ApiResponse<SupportTicketResponse>> createTicket(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                                            @RequestBody Map<String, String> request) {
         log.info("Create ticket request from user: {}", userPrincipal.getId());
 
-        String ticketId = "TICKET-" + System.currentTimeMillis();
+        SupportTicketResponse ticket = createSupportTicketUseCase.execute(
+                userPrincipal.getId(),
+                request.get("subject"),
+                request.get("description"),
+                request.get("priority")
+        );
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("ticket_id", ticketId);
-        response.put("status", "OPEN");
-        response.put("created_at", LocalDateTime.now());
-        response.put("estimated_response_time", "24 hours");
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(ticket));
     }
 
     @GetMapping("/tickets")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTickets(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         log.info("Get tickets request for user: {}", userPrincipal.getId());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("tickets", new ArrayList<>());
+        List<SupportTicketResponse> tickets = getSupportTicketsUseCase.execute(userPrincipal.getId());
 
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(Map.of("tickets", tickets)));
     }
 }

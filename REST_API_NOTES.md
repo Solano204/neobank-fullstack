@@ -1,0 +1,18 @@
+# REST API Notes — neobank-backend
+
+Doc 1 deliverable. This codebase starts from a much higher baseline than the other 3 projects reviewed this session: proper `findByIdAndUserId` ownership checks preventing IDOR on every account/KYC/notification lookup, a `GlobalExceptionHandler` that already does the RFC-9457-equivalent right thing (generic message + full server-side log on unclassified exceptions, specific status codes per exception type), `@Valid` used correctly everywhere, `201 Created` used correctly on signup, no credentials ever in a URL, OpenAPI already configured, and `NotificationController` already paginated. None of the systemic issues found in food-ordering-system/furniture_store/GYM_MOSTER repeat here. Depth for this doc went into verifying that confidence, not assuming it - and one real, live, broken flow turned up regardless.
+
+## Critical, fixed: the entire KYC upload flow was broken
+
+Traced the KYC document upload path end-to-end (frontend → `KycController` → `GenerateUploadUrlUseCase` → `S3Adapter`) because it's the one area handling direct client-to-S3 writes, and found:
+
+1. **`UploadUrlResponse` never included the S3 key**, but the frontend (`app/kyc/page.tsx`) already reads `urlRes.data.s3Key` to pass to the follow-up `POST /api/kyc/verify` call. Every KYC upload was sending `s3Key: undefined` to the verify endpoint - this flow could not have been working. Fixed by adding `s3Key` to the response DTO.
+2. **The S3 key was built from the raw, unsanitized client-supplied filename** (`kyc-docs/{userId}/{fileName}`) - no length limit, no character validation, no extension check. Fixed: the key is now `kyc-docs/{userId}/{server-generated-UUID}.{validated-extension}`, so nothing client-supplied reaches S3 except a checked 3-4 character extension.
+3. **The presigned PUT signs a fixed `Content-Type: image/jpeg`** (in `S3Adapter`, not changed - a business decision about what KYC accepts, not mine to make) - but nothing validated that the client-supplied filename's extension matched what would actually be accepted, and the frontend sends whatever `file.type` the browser detects, not a fixed value. Added an extension allowlist (`jpg`/`jpeg`) matching the already-hardcoded content type, so a mismatched file now fails fast with a clear `UNSUPPORTED_FILE_TYPE` error from the backend instead of an opaque S3 signature-mismatch error the frontend has to somehow interpret.
+4. **`maxFileSize` (5MB) is returned to the client but never enforced** - a presigned PUT URL (unlike a presigned POST policy with a `content-length-range` condition) doesn't constrain upload size. Not fixed: switching to a presigned POST changes the response shape (URL + form fields instead of a single PUT URL) and the frontend's upload call (`axios.put` → a multipart form POST), a coordinated frontend+backend change bigger than this pass should make blind. Flagging clearly: the 5MB figure is currently advisory only, bypassable by ansyone calling the presigned URL directly instead of through the UI.
+
+## Minor, not fixed
+
+`/accounts/{id}/freeze` and `/unfreeze` are POST-with-verb rather than a PATCH-style state change - defensible here (freeze/unfreeze are genuine named state transitions on the account, not a generic update), not flagging as a violation the way GYM_MOSTER's `/change-password/{oldPassword}/{newPassword}`-style routes were.
+
+Error format is a consistent custom `ErrorResponse` shape (timestamp/status/error/message/data), not RFC 9457 - unlike the other 3 projects this is at least internally consistent everywhere, so migrating to the RFC 9457 standard shape is a nice-to-have for interop with generic HTTP tooling, not a correctness fix.

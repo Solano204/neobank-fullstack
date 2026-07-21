@@ -1,0 +1,72 @@
+name: Terraform main branch plan
+
+# Deliberately stops at `plan` -- `apply` against real AWS infrastructure stays
+# a manual step the user triggers themselves, not something CI does automatically.
+# `plan` now only runs here (push to main / manual dispatch), not on
+# pull_request - see terraform-pr.yml's comment for why that mattered.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'neobank-terraform/**'
+      - '.github/workflows/terraform-main.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-main-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: neobank-terraform
+
+jobs:
+  validate:
+    name: fmt + validate + plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.9.0'
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend, no state access needed to validate)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      # SECURITY NOTE (not changed in this pass - flagging, not silently
+      # fixing): this step authenticates to AWS with long-lived static
+      # secrets (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY). The stronger
+      # pattern is OIDC (actions/configure-aws-credentials with
+      # `role-to-assume`, no stored AWS keys at all) - it eliminates the risk
+      # of a long-lived credential leaking from a workflow log, a compromised
+      # dependency, or a misconfigured step, since there's nothing durable to
+      # steal: GitHub exchanges a short-lived OIDC token for temporary AWS
+      # credentials scoped to this repo/workflow, per run. Migrating requires
+      # creating an IAM role with a trust policy for this repo in the AWS
+      # account first (an AWS-console/IaC change, not something to do blind
+      # from inside this same pass) - tracked as a follow-up, not applied here.
+      - name: terraform plan
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_key_name: ${{ secrets.TF_VAR_KEY_NAME }}
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_s3_bucket_name: ${{ secrets.TF_VAR_S3_BUCKET_NAME }}
+          TF_VAR_ses_from_email: ${{ secrets.TF_VAR_SES_FROM_EMAIL }}
+          TF_VAR_jwt_secret: ${{ secrets.TF_VAR_JWT_SECRET }}
+        run: terraform plan -input=false

@@ -1,0 +1,47 @@
+name: Terraform PR checks
+
+# fmt + validate only - deliberately no `plan` here. The old single
+# terraform.yml ran `plan` (with real AWS credentials in env) on both push
+# AND pull_request; pull_request from a branch in the same repo (not a fork)
+# still gets secrets access by GitHub's default, so that was a real path for
+# a PR to exercise live AWS credentials before a human ever reviewed it.
+# `plan` now only runs from terraform-main.yml, on push to main.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'neobank-terraform/**'
+      - '.github/workflows/terraform-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: neobank-terraform
+
+jobs:
+  validate:
+    name: fmt + validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.9.0'
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend, no state access needed to validate)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate

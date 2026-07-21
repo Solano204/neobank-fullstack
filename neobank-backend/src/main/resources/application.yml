@@ -1,6 +1,38 @@
+server:
+  shutdown: graceful
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # 100% in local dev - drop before pointing at a shared/persistent environment
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
 spring:
   application:
     name: neobank-backend
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
@@ -38,28 +70,6 @@ spring:
     time-zone: UTC
     default-property-inclusion: non_null
 
-server:
-  port: ${SERVER_PORT:8080}
-  servlet:
-    context-path: /
-  compression:
-    enabled: true
-    mime-types: application/json,application/xml,text/html,text/xml,text/plain
-  error:
-    include-message: always
-    include-binding-errors: always
-    include-stacktrace: never
-    include-exception: false
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
-
 aws:
   region: ${AWS_REGION:us-east-1}
   accessKeyId: ${AWS_ACCESS_KEY_ID:}
@@ -79,6 +89,9 @@ aws:
   sqs:
     queueUrl: ${AWS_SQS_QUEUE_URL:}
     queueArn: ${AWS_SQS_QUEUE_ARN:}
+
+  dynamodb:
+    transactionsTable: ${AWS_DYNAMODB_TRANSACTIONS_TABLE:transactions}
 
 app:
   jwt:

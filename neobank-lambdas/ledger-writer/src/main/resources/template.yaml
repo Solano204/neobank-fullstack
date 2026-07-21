@@ -7,7 +7,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ledger-writer
-      Handler: com.neobank.lambda.LedgerWriterHandler::handleRequest
+      Handler: neobank.LedgerWriterHandler::handleRequest
       Runtime: java17
       CodeUri: target/ledger-writer-1.0.0.jar
       MemorySize: 512

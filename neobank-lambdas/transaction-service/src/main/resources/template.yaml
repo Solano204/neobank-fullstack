@@ -1,31 +1,80 @@
-version: 0.2
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Transaction Service Lambda
 
-phases:
-  install:
-    runtime-versions:
-      java: corretto17
+# NOTE: this template is used for `sam local start-api` / `sam local invoke`
+# during development. The real deployment is Terraform-managed
+# (neobank-terraform/modules/lambdas + modules/api-gateway) -- Terraform owns
+# the actual API Gateway REST API and Lambda function in AWS.
 
-  pre_build:
-    commands:
-      - echo Build started on `date`
-      - echo Downloading dependencies...
+Resources:
+  TransactionServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: transaction-service
+      Handler: neobank.TransactionHandler::handleRequest
+      Runtime: java17
+      CodeUri: target/transaction-service-1.0.0.jar
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          DB_URL: !Ref DBUrl
+          DB_USER: !Ref DBUser
+          DB_PASSWORD: !Ref DBPassword
+          SNS_TXN_TOPIC_ARN: !Ref SnsTxnTopicArn
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref SnsTxnTopicArn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Events:
+        PostTransactions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TransactionServiceApi
+            Path: /transactions
+            Method: POST
+        OptionsTransactions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TransactionServiceApi
+            Path: /transactions
+            Method: OPTIONS
 
-  build:
-    commands:
-      - echo Building the application...
-      - mvn clean package
+  TransactionServiceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: neobank-transaction-service-api
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
 
-  post_build:
-    commands:
-      - echo Build completed on `date`
-      - echo Packaging deployment artifact...
+Parameters:
+  DBUrl:
+    Type: String
+  DBUser:
+    Type: String
+  DBPassword:
+    Type: String
+    NoEcho: true
+  SnsTxnTopicArn:
+    Type: String
+  SecurityGroupId:
+    Type: String
+  SubnetIds:
+    Type: CommaDelimitedList
 
-artifacts:
-  files:
-    - target/transaction-service-1.0.0.jar
-    - template.yaml
-  name: transaction-service-$(date +%Y%m%d-%H%M%S)
-
-cache:
-  paths:
-    - '/root/.m2/**/*'
+Outputs:
+  TransactionServiceFunctionArn:
+    Value: !GetAtt TransactionServiceFunction.Arn

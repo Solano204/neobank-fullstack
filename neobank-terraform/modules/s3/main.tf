@@ -1,7 +1,7 @@
 resource "aws_s3_bucket" "kyc" {
   bucket        = var.bucket_name
   force_destroy = false
-  tags = { Name = var.bucket_name, Environment = var.environment }
+  tags          = { Name = var.bucket_name, Environment = var.environment }
 }
 
 resource "aws_s3_bucket_versioning" "kyc" {

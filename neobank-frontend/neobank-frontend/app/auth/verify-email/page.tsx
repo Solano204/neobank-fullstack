@@ -1,5 +1,5 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Mail } from "lucide-react";
@@ -9,13 +9,34 @@ import { authApi }         from "@/lib/api/auth";
 import { getErrorMessage } from "@/lib/api/client";
 import { useAuthStore }    from "@/lib/store/authStore";
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email  = params.get("email") || "";
   const { setUser, setTokens } = useAuthStore();
-  const [code, setCode]       = useState("");
-  const [loading, setLoading] = useState(false);
+  const [code, setCode]         = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown]   = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  async function handleResend() {
+    setResending(true);
+    try {
+      await authApi.resendCode(email);
+      toast.success("Código reenviado a tu correo");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally { setResending(false); }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +66,13 @@ function VerifyForm() {
           value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} required />
         <Button type="submit" loading={loading} fullWidth>Verificar correo</Button>
       </form>
+      <p className="text-sm text-slate-500 mt-5 text-center">
+        ¿No recibiste el código?{" "}
+        <button type="button" onClick={handleResend} disabled={resending || cooldown > 0}
+          className="text-blue-400 hover:text-blue-300 font-medium disabled:text-slate-600 disabled:cursor-not-allowed">
+          {cooldown > 0 ? `Reenviar en ${cooldown}s` : "Reenviar código"}
+        </button>
+      </p>
     </div>
   );
 }
