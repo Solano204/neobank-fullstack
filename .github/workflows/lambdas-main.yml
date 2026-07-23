@@ -34,6 +34,13 @@ jobs:
     defaults:
       run:
         working-directory: neobank-lambdas/${{ matrix.lambda }}
+    env:
+      # Every handler builds its AWS SDK client (SNS/DynamoDB/S3/CloudWatch)
+      # eagerly in a static initializer, which resolves a region at class-init
+      # time - with none configured on the runner this threw SdkClientException
+      # before a single test method could run, failing every test in the class.
+      # No real AWS calls happen in these unit tests, so any valid region works.
+      AWS_REGION: us-east-1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -62,6 +69,12 @@ jobs:
     defaults:
       run:
         working-directory: neobank-lambdas/fraud-checker
+    env:
+      # boto3.resource('dynamodb') at module import time resolves a region
+      # immediately - pytest's collection of test_lambda_function.py imports
+      # the module, so with no region configured it failed before any test
+      # could even be collected, let alone run.
+      AWS_REGION: us-east-1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
