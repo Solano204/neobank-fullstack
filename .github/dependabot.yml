@@ -1,0 +1,106 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /neobank-backend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/transaction-service
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/transaction-query
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/ledger-writer
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/notification-service
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/analytics-processor
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/kyc-validator
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: maven
+    directory: /neobank-lambdas/lex-fulfillment
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: /neobank-lambdas/fraud-checker
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /neobank-frontend/neobank-frontend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-backend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/transaction-service
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/transaction-query
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/ledger-writer
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/notification-service
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/analytics-processor
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/kyc-validator
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/lex-fulfillment
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /neobank-lambdas/fraud-checker
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: terraform
+    directory: /neobank-terraform
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

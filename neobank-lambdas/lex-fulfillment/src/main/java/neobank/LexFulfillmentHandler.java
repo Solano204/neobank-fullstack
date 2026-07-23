@@ -232,7 +232,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
      * "I didn't authorize this transaction" / "My account was hacked"
      * Guides user through fraud reporting flow
      */
-    private String handleFraudAlert(String userId, Map<String, String> slots, Context context) {
+    String handleFraudAlert(String userId, Map<String, String> slots, Context context) {
         String transactionId = slots.get("transactionId");
 
         if (transactionId != null && !transactionId.isEmpty()) {
@@ -254,7 +254,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     /**
      * "How do I transfer money?" / General banking questions
      */
-    private String handleGeneralHelp(Map<String, String> slots) {
+    String handleGeneralHelp(Map<String, String> slots) {
         String topic = slots.getOrDefault("helpTopic", "").toLowerCase();
 
         if (topic.contains("transfer")) {
@@ -380,7 +380,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     // ─────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private String extractIntentName(Map<String, Object> event) {
+    String extractIntentName(Map<String, Object> event) {
         try {
             Map<String, Object> sessionState = (Map<String, Object>) event.get("sessionState");
             Map<String, Object> intent = (Map<String, Object>) sessionState.get("intent");
@@ -391,7 +391,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     }
 
     @SuppressWarnings("unchecked")
-    private String extractUserId(Map<String, Object> event) {
+    String extractUserId(Map<String, Object> event) {
         try {
             Map<String, Object> sessionState = (Map<String, Object>) event.get("sessionState");
             Map<String, Object> sessionAttributes = (Map<String, Object>) sessionState.get("sessionAttributes");
@@ -403,7 +403,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, String> extractSlots(Map<String, Object> event) {
+    Map<String, String> extractSlots(Map<String, Object> event) {
         Map<String, String> result = new HashMap<>();
         try {
             Map<String, Object> sessionState = (Map<String, Object>) event.get("sessionState");
@@ -429,7 +429,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     // ─────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> buildLexResponse(Map<String, Object> event,
+    Map<String, Object> buildLexResponse(Map<String, Object> event,
                                                  String intentName,
                                                  String message,
                                                  String fulfillmentState) {
@@ -467,7 +467,7 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
     // UTILITY HELPERS
     // ─────────────────────────────────────────────────────────
 
-    private String getAttr(Map<String, AttributeValue> item, String key) {
+    String getAttr(Map<String, AttributeValue> item, String key) {
         AttributeValue val = item.get(key);
         if (val == null) return "";
         if (val.s() != null) return val.s();
@@ -475,12 +475,12 @@ public class LexFulfillmentHandler implements RequestHandler<Map<String, Object>
         return "";
     }
 
-    private String maskAccount(String account) {
+    String maskAccount(String account) {
         if (account == null || account.length() < 4) return "****";
         return "****" + account.substring(account.length() - 4);
     }
 
-    private String formatTransactionDetails(Map<String, AttributeValue> item) {
+    String formatTransactionDetails(Map<String, AttributeValue> item) {
         String id = getAttr(item, "transaction_id");
         String amount = getAttr(item, "amount");
         String status = getAttr(item, "status");

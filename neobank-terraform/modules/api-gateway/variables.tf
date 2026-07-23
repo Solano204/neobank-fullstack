@@ -4,3 +4,4 @@ variable "transaction_query_invoke_arn" {}
 variable "transaction_service_arn" {}
 variable "transaction_query_arn" {}
 variable "cors_allowed_origins" {}
+variable "cognito_user_pool_arn" {}

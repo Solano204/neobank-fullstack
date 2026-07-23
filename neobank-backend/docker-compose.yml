@@ -1,5 +1,28 @@
 version: '3.8'
 
+# Doc 2 hardening notes:
+# - Postgres password was the one hardcoded plaintext value here
+#   (POSTGRES_PASSWORD: postgres) while every AWS/JWT secret already
+#   correctly used ${VAR} interpolation from .env - inconsistent, now fixed
+#   to match the pattern already established for everything else in this file.
+# - Added a healthcheck for neobank-backend (actuator is already a
+#   dependency) and gated nothing new on it since nothing else in this
+#   2-service file depends on the backend.
+# - Resource limits and log rotation added to both services - neither
+#   existed before.
+# - Real deployment target is EC2 + RDS (see neobank-terraform) - this file
+#   is the local-dev path only.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-security: &default-security
+  security_opt:
+    - no-new-privileges:true
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -7,18 +30,42 @@ services:
     environment:
       POSTGRES_DB: neobank_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - neobank-network
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *default-logging
+    <<: *default-security
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  zipkin:
+    image: openzipkin/zipkin:3.3
+    container_name: neobank-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - neobank-network
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *default-logging
+    <<: *default-security
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9411/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
 
   neobank-backend:
     build:
@@ -28,13 +75,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      zipkin:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: dev
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: neobank_db
       DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
@@ -43,11 +92,22 @@ services:
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
       AWS_SES_FROM_EMAIL: ${AWS_SES_FROM_EMAIL}
       JWT_SECRET: ${JWT_SECRET}
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
     ports:
       - "8080:8080"
     networks:
       - neobank-network
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    logging: *default-logging
+    <<: *default-security
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 45s
 
 volumes:
   postgres-data:

@@ -33,8 +33,12 @@ done
 # Python Lambda
 echo -e "${YELLOW}Building fraud-checker...${NC}"
 cd fraud-checker
-pip install -r requirements.txt -t .
-zip -r fraud-checker.zip .
+rm -rf build fraud-checker.zip
+mkdir -p build
+cp lambda_function.py build/
+pip install -r requirements.txt -t build/
+(cd build && zip -r ../fraud-checker.zip .)
+rm -rf build
 
 echo -e "${GREEN}Deploying fraud-checker...${NC}"
 aws lambda update-function-code \
@@ -42,6 +46,7 @@ aws lambda update-function-code \
     --zip-file fileb://fraud-checker.zip \
     --region us-east-1
 
+rm -f fraud-checker.zip
 cd ..
 echo -e "${GREEN}✓ fraud-checker deployed${NC}"
 echo ""

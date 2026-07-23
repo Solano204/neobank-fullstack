@@ -33,9 +33,14 @@ resource "aws_iam_role_policy" "neobank_permissions" {
         Resource = ["arn:aws:dynamodb:*:*:table/transactions", "arn:aws:dynamodb:*:*:table/transactions/index/*"]
       },
       {
-        Effect   = "Allow"
-        Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:SendMessage"]
-        Resource = [var.sqs_queue_arn]
+        Effect = "Allow"
+        Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+        Resource = [
+          var.ledger_queue_arn,
+          var.fraud_queue_arn,
+          var.analytics_queue_arn,
+          var.notifications_queue_arn,
+        ]
       },
       {
         Effect   = "Allow"
@@ -75,73 +80,93 @@ resource "aws_security_group" "lambda" {
 }
 
 # ─── Common env vars ──────────────────────────────────────────
+# Keep this to attributes every function can safely share. Anything
+# function-specific (which SNS topic, etc) is merged in per-function below --
+# a single shared "SNS_TOPIC_ARN" would silently mean a different topic
+# depending on which function read it.
 locals {
   common_env = {
-    DYNAMODB_TABLE      = var.dynamodb_table
-    AWS_REGION_NAME     = var.aws_region
-    DB_URL              = var.db_url
-    DB_USER             = "postgres"
-    DB_PASSWORD         = var.db_password
-    SNS_FRAUD_TOPIC_ARN = var.sns_fraud_arn
-    SNS_KYC_TOPIC_ARN   = var.sns_kyc_arn
-    SNS_TXN_TOPIC_ARN   = var.sns_txn_arn
-    SQS_QUEUE_URL       = var.sqs_queue_url
-    S3_BUCKET           = var.s3_bucket_name
+    DYNAMODB_TABLE  = var.dynamodb_table
+    AWS_REGION_NAME = var.aws_region
+    DB_URL          = var.db_url
+    DB_USER         = "postgres"
+    DB_PASSWORD     = var.db_password
+    S3_BUCKET       = var.s3_bucket_name
+  }
+
+  # Lambdas that need to reach RDS over the private network.
+  db_vpc_config = {
+    security_group_ids = [aws_security_group.lambda.id]
+    subnet_ids         = var.private_subnet_ids
   }
 }
 
-# ─── LAMBDA 1: analytics-processor ───────────────────────────
+# ─── LAMBDA 1: analytics-processor (Java 17) ─────────────────
 resource "aws_lambda_function" "analytics_processor" {
   function_name = "analytics-processor"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
-  timeout       = 30
-  memory_size   = 512
-  filename      = "${path.module}/placeholder.zip"
-  environment { variables = local.common_env }
-  tags          = { Name = "analytics-processor" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
-}
-
-resource "aws_lambda_event_source_mapping" "analytics_sqs" {
-  event_source_arn = var.sqs_queue_arn
-  function_name    = aws_lambda_function.analytics_processor.arn
-  batch_size       = 10
-}
-
-# ─── LAMBDA 2: fraud-checker ─────────────────────────────────
-resource "aws_lambda_function" "fraud_checker" {
-  function_name = "fraud-checker"
-  role          = aws_iam_role.lambda.arn
-  handler       = "handler.lambda_handler"
-  runtime       = "python3.11"
+  handler       = "neobank.AnalyticsHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 30
   memory_size   = 256
   filename      = "${path.module}/placeholder.zip"
   environment { variables = local.common_env }
-  tags          = { Name = "fraud-checker" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  tags = { Name = "analytics-processor" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
+}
+
+resource "aws_lambda_event_source_mapping" "analytics_sqs" {
+  event_source_arn        = var.analytics_queue_arn
+  function_name           = aws_lambda_function.analytics_processor.arn
+  batch_size              = 10
+  function_response_types = ["ReportBatchItemFailures"]
+}
+
+# ─── LAMBDA 2: fraud-checker (Python 3.11) ───────────────────
+resource "aws_lambda_function" "fraud_checker" {
+  function_name = "fraud-checker"
+  role          = aws_iam_role.lambda.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 60
+  memory_size   = 256
+  filename      = "${path.module}/placeholder.zip"
+  environment {
+    variables = merge(local.common_env, {
+      SNS_FRAUD_TOPIC = var.sns_fraud_arn
+    })
+  }
+  tags = { Name = "fraud-checker" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
 resource "aws_lambda_event_source_mapping" "fraud_sqs" {
-  event_source_arn = var.sqs_queue_arn
-  function_name    = aws_lambda_function.fraud_checker.arn
-  batch_size       = 10
+  event_source_arn        = var.fraud_queue_arn
+  function_name           = aws_lambda_function.fraud_checker.arn
+  batch_size              = 10
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
-# ─── LAMBDA 3: kyc-validator ─────────────────────────────────
+# ─── LAMBDA 3: kyc-validator (Java 17) ───────────────────────
 resource "aws_lambda_function" "kyc_validator" {
   function_name = "kyc-validator"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
+  handler       = "neobank.KycValidatorHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 60
-  memory_size   = 512
+  memory_size   = 1024
   filename      = "${path.module}/placeholder.zip"
-  environment { variables = local.common_env }
-  tags          = { Name = "kyc-validator" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  environment {
+    variables = merge(local.common_env, {
+      SNS_TOPIC_ARN = var.sns_kyc_arn
+    })
+  }
+  vpc_config {
+    security_group_ids = local.db_vpc_config.security_group_ids
+    subnet_ids         = local.db_vpc_config.subnet_ids
+  }
+  tags = { Name = "kyc-validator" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
 resource "aws_lambda_permission" "kyc_s3" {
@@ -152,84 +177,110 @@ resource "aws_lambda_permission" "kyc_s3" {
   source_arn    = "arn:aws:s3:::${var.s3_bucket_name}"
 }
 
-# ─── LAMBDA 4: ledger-writer ─────────────────────────────────
+# ─── LAMBDA 4: ledger-writer (Java 17) ───────────────────────
 resource "aws_lambda_function" "ledger_writer" {
   function_name = "ledger-writer"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
-  timeout       = 30
+  handler       = "neobank.LedgerWriterHandler::handleRequest"
+  runtime       = "java17"
+  timeout       = 60
   memory_size   = 512
   filename      = "${path.module}/placeholder.zip"
   environment { variables = local.common_env }
-  tags          = { Name = "ledger-writer" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  tags = { Name = "ledger-writer" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
 resource "aws_lambda_event_source_mapping" "ledger_sqs" {
-  event_source_arn = var.sqs_queue_arn
-  function_name    = aws_lambda_function.ledger_writer.arn
-  batch_size       = 10
+  event_source_arn        = var.ledger_queue_arn
+  function_name           = aws_lambda_function.ledger_writer.arn
+  batch_size              = 10
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
-# ─── LAMBDA 5: notification-service ──────────────────────────
+# ─── LAMBDA 5: notification-service (Java 17) ────────────────
 resource "aws_lambda_function" "notification_service" {
   function_name = "notification-service"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
+  handler       = "neobank.NotificationHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 30
-  memory_size   = 512
+  memory_size   = 256
   filename      = "${path.module}/placeholder.zip"
-  environment { variables = local.common_env }
-  tags          = { Name = "notification-service" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  environment {
+    variables = merge(local.common_env, {
+      SNS_TOPIC_ARN = var.sns_txn_arn
+    })
+  }
+  vpc_config {
+    security_group_ids = local.db_vpc_config.security_group_ids
+    subnet_ids         = local.db_vpc_config.subnet_ids
+  }
+  tags = { Name = "notification-service" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
 resource "aws_lambda_event_source_mapping" "notification_sqs" {
-  event_source_arn = var.sqs_queue_arn
-  function_name    = aws_lambda_function.notification_service.arn
-  batch_size       = 10
+  event_source_arn        = var.notifications_queue_arn
+  function_name           = aws_lambda_function.notification_service.arn
+  batch_size              = 10
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
-# ─── LAMBDA 6: transaction-service ───────────────────────────
+# ─── LAMBDA 6: transaction-service (Java 17) ─────────────────
 resource "aws_lambda_function" "transaction_service" {
   function_name = "transaction-service"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
+  handler       = "neobank.TransactionHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 30
   memory_size   = 512
   filename      = "${path.module}/placeholder.zip"
-  environment { variables = local.common_env }
-  tags          = { Name = "transaction-service" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  environment {
+    variables = merge(local.common_env, {
+      SNS_TXN_TOPIC_ARN = var.sns_txn_arn
+    })
+  }
+  vpc_config {
+    security_group_ids = local.db_vpc_config.security_group_ids
+    subnet_ids         = local.db_vpc_config.subnet_ids
+  }
+  tags = { Name = "transaction-service" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
-# ─── LAMBDA 7: transaction-query ─────────────────────────────
+# ─── LAMBDA 7: transaction-query (Java 17) ───────────────────
 resource "aws_lambda_function" "transaction_query" {
   function_name = "transaction-query"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
+  handler       = "neobank.TransactionQueryHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 30
   memory_size   = 512
   filename      = "${path.module}/placeholder.zip"
   environment { variables = local.common_env }
-  tags          = { Name = "transaction-query" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  vpc_config {
+    security_group_ids = local.db_vpc_config.security_group_ids
+    subnet_ids         = local.db_vpc_config.subnet_ids
+  }
+  tags = { Name = "transaction-query" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }
 
-# ─── LAMBDA 8: lex-fulfillment ───────────────────────────────
+# ─── LAMBDA 8: lex-fulfillment (Java 17) ─────────────────────
 resource "aws_lambda_function" "lex_fulfillment" {
   function_name = "lex-fulfillment"
   role          = aws_iam_role.lambda.arn
-  handler       = "index.handler"
-  runtime       = "python3.11"
+  handler       = "neobank.LexFulfillmentHandler::handleRequest"
+  runtime       = "java17"
   timeout       = 30
   memory_size   = 512
   filename      = "${path.module}/placeholder.zip"
   environment { variables = local.common_env }
-  tags          = { Name = "lex-fulfillment" }
-  lifecycle     { ignore_changes = [filename, source_code_hash] }
+  vpc_config {
+    security_group_ids = local.db_vpc_config.security_group_ids
+    subnet_ids         = local.db_vpc_config.subnet_ids
+  }
+  tags = { Name = "lex-fulfillment" }
+  lifecycle { ignore_changes = [filename, source_code_hash] }
 }

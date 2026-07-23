@@ -1,0 +1,15 @@
+NEOBANK — Hexagonal Banking Platform with a Serverless Transaction Core
+
+**Hexagonal Core + Serverless Satellites**: I designed a Spring Boot 3 backend (Java 21) built around a strict hexagonal architecture — domain entities, application use cases, infrastructure adapters, and presentation controllers kept in separate layers — deployed as a Docker container, paired with 8 AWS Lambda functions (7 Java 17, 1 Python 3.11) that own transaction processing, fraud scoring, ledger writes, KYC document verification, notifications, analytics, and a conversational support bot. The full stack — VPC, RDS, EC2, S3, DynamoDB, SNS, SQS, Cognito, API Gateway, and all 8 Lambdas — is provisioned through Terraform.
+
+**Event-Driven Transaction Pipeline**: I built a fan-out pipeline where a single SNS publish per transfer is independently consumed by 4 SQS-backed Lambdas (ledger, fraud, analytics, notifications), each with its own dead-letter queue and partial-batch-failure reporting, so one consumer's failure can't block or duplicate processing in the others. Two Lambdas write to the same DynamoDB record from different queues with no ordering guarantee between them; I resolved that race with conditional partial `UpdateItem` writes instead of a full-item replace.
+
+**AI-Assisted KYC**: I integrated AWS Rekognition into an S3-triggered Lambda that runs multi-point identity validation (face-match confidence, eyes-open, image sharpness, brightness) on uploaded documents, auto-approving or rejecting against Postgres and notifying the user by SNS — no manual review for the common case.
+
+**Transaction-Safe Money Movement**: I used row-level pessimistic locking (`SELECT ... FOR UPDATE`) and `BigDecimal` arithmetic across the transfer path to prevent double-spend and floating-point drift, sitting behind a Cognito-authorized API Gateway layer that verifies the caller's identity against account ownership before any funds move.
+
+**Real Analytics, Not Mocked Data**: I built spending-analytics and balance-forecast endpoints that query DynamoDB directly (via GSIs on both sides of a transfer) and aggregate real transaction history into spend/received totals, status-based breakdowns, and a linear balance projection — replacing what was originally a hardcoded placeholder response.
+
+**Testing & Delivery**: JUnit5 + Mockito unit tests and Testcontainers-backed Postgres integration tests on the backend, per-module unit tests across every Lambda, and Vitest coverage on the frontend, wired into 4 GitHub Actions pipelines (backend, frontend, Lambdas, Terraform) that build and push Docker images to GHCR on merge. Two Cognito-authenticated JMeter plans load-test both the REST API and the API-Gateway-fronted transaction endpoints.
+
+Technologies: Java 21 (Spring Boot 3.2, Spring Security, Spring Data JPA, MapStruct), AWS Lambda (Java 17 / Python 3.11), AWS (API Gateway, Cognito, DynamoDB, S3, SNS, SQS, Rekognition, CloudWatch), Terraform, PostgreSQL + Flyway, Next.js 15 / React 19 / TypeScript / Tailwind CSS v4, JUnit5 + Mockito + Testcontainers, Vitest, JMeter, Docker, GitHub Actions.

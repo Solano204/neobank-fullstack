@@ -5,6 +5,7 @@ import Card   from "@/components/ui/Card";
 import Badge  from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { transactionsApi } from "@/lib/api/transactions";
+import { accountsApi } from "@/lib/api/accounts";
 import { formatMXN, formatDate } from "@/lib/utils";
 import type { Transaction } from "@/types";
 import { ArrowDownLeft, ArrowUpRight, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,18 +17,24 @@ export default function TransactionsPage() {
   const [loading, setLoading]      = useState(true);
   const [search, setSearch]        = useState("");
   const [filter, setFilter]        = useState<string>("ALL");
+  const [accountNumber, setAccountNumber] = useState<string | null>(null);
   const limit = 20;
 
+  useEffect(() => {
+    accountsApi.getAll().then(r => setAccountNumber(r.data?.accounts?.[0]?.accountNumber || null)).catch(() => {});
+  }, []);
+
   const loadTxs = useCallback(async (p: number) => {
+    if (!accountNumber) return;
     setLoading(true);
     try {
-      const res = await transactionsApi.getHistory(p, limit);
+      const res = await transactionsApi.getHistory(accountNumber, p + 1, limit);
       setTxs(res.data?.transactions || []);
       setTotal(res.data?.total || 0);
     } catch {} finally { setLoading(false); }
-  }, []);
+  }, [accountNumber]);
 
-  useEffect(() => { loadTxs(page); }, [page, loadTxs]);
+  useEffect(() => { if (accountNumber) loadTxs(page); }, [page, accountNumber, loadTxs]);
 
   const filtered = transactions.filter(tx => {
     const matchSearch = !search || tx.description?.toLowerCase().includes(search.toLowerCase()) || tx.toAccount?.includes(search);

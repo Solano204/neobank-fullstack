@@ -11,8 +11,11 @@ TABLE_NAME = os.environ['DYNAMODB_TABLE']
 SNS_TOPIC = os.environ['SNS_FRAUD_TOPIC']
 
 def lambda_handler(event, context):
-    success_count = 0
-    failure_count = 0
+    # Reported back to the SQS event source mapping (ReportBatchItemFailures
+    # is enabled on this queue) so only messages that actually failed get
+    # redelivered/retried and eventually DLQ'd -- not the whole batch, and
+    # not silently dropped either.
+    batch_item_failures = []
 
     for record in event['Records']:
         try:
@@ -22,24 +25,24 @@ def lambda_handler(event, context):
 
             update_fraud_score(transaction['transaction_id'], fraud_score, context)
 
-            if fraud_score > 0.75:
+            # >= not > : the max achievable score with the current weights
+            # (0.3 high-amount + 0.2 odd-hour + 0.1 weekend + 0.15 round-number)
+            # is exactly 0.75, so a strict ">" made the freeze/alert path
+            # unreachable no matter how risky a transaction looked.
+            if fraud_score >= 0.75:
                 send_fraud_alert(transaction, fraud_score, context)
                 freeze_transaction(transaction['transaction_id'], context)
 
-            success_count += 1
             context.log(f"Fraud check complete: {transaction['transaction_id']} - Score: {fraud_score:.2f}")
 
         except Exception as e:
-            failure_count += 1
             context.log(f"Error processing fraud check: {str(e)}")
             print(f"Error details: {str(e)}")
+            batch_item_failures.append({'itemIdentifier': record['messageId']})
 
-    context.log(f"Fraud checks complete. Success: {success_count}, Failures: {failure_count}")
+    context.log(f"Fraud checks complete. Success: {len(event['Records']) - len(batch_item_failures)}, Failures: {len(batch_item_failures)}")
 
-    return {
-        'statusCode': 200,
-        'body': json.dumps({'success': success_count, 'failures': failure_count})
-    }
+    return {'batchItemFailures': batch_item_failures}
 
 def calculate_fraud_score(transaction, context):
     score = 0.0

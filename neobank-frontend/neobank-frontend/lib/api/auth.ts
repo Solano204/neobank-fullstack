@@ -4,6 +4,7 @@ import type { SignupRequest, LoginRequest, AuthResponse, SignupResponse, ApiResp
 export const authApi = {
   signup:         (body: SignupRequest)                                    => api.post<SignupResponse>("/api/auth/signup", body),
   verifyEmail:    (email: string, code: string)                           => api.post<AuthResponse>("/api/auth/verify-email", { email, code }),
+  resendCode:     (email: string)                                         => api.post<ApiResponse>("/api/auth/resend-code", { email }),
   login:          (body: LoginRequest)                                     => api.post<AuthResponse>("/api/auth/login", body),
   refreshToken:   (refreshToken: string)                                  => api.post<AuthResponse>("/api/auth/refresh-token", { refreshToken }),
   logout:         ()                                                       => api.post<ApiResponse>("/api/auth/logout"),

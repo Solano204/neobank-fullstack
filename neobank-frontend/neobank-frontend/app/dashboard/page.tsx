@@ -22,12 +22,17 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [accRes, txRes] = await Promise.allSettled([
-        accountsApi.getAll(),
-        transactionsApi.getHistory(0, 5),
-      ]);
-      if (accRes.status === "fulfilled") setAccounts(accRes.value.data?.accounts || []);
-      if (txRes.status  === "fulfilled") setTransactions(txRes.value.data?.transactions || []);
+      const accRes = await accountsApi.getAll().catch(() => null);
+      const accs = accRes?.data?.accounts || [];
+      setAccounts(accs);
+
+      if (accs[0]) {
+        try {
+          const txRes = await transactionsApi.getHistory(accs[0].accountNumber, 1, 5);
+          setTransactions(txRes.data?.transactions || []);
+        } catch { /* optional */ }
+      }
+
       try {
         const notifRes = await notificationsApi.getAll();
         setNotifications((notifRes.data?.notifications || []).slice(0, 3));

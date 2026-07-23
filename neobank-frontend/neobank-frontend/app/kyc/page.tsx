@@ -7,7 +7,7 @@ import Button from "@/components/ui/Button";
 import { kycApi }          from "@/lib/api/kyc";
 import { getErrorMessage } from "@/lib/api/client";
 import type { KycStatus, DocumentType } from "@/types";
-import { Upload, CheckCircle, XCircle, Clock, Shield, FileText } from "lucide-react";
+import { Upload, CheckCircle, XCircle, Clock, Shield, FileText, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const DOCS: { type: DocumentType; label: string; description: string }[] = [
@@ -21,6 +21,7 @@ export default function KycPage() {
   const [status,    setStatus]    = useState<KycStatus | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState<DocumentType | null>(null);
+  const [deleting,  setDeleting]  = useState<DocumentType | null>(null);
   const [pending,   setPending]   = useState<DocumentType | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
 
@@ -45,6 +46,18 @@ export default function KycPage() {
   function triggerUpload(docType: DocumentType) {
     setPending(docType);
     fileInputRef.current?.click();
+  }
+
+  async function handleDelete(documentId: string, docType: DocumentType) {
+    setDeleting(docType);
+    try {
+      await kycApi.deleteDocument(documentId);
+      toast.success("Documento eliminado");
+      const updated = await kycApi.getStatus();
+      setStatus(updated.data);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally { setDeleting(null); }
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -110,11 +123,19 @@ export default function KycPage() {
                     {d?.aiConfidence && <p className="text-xs text-blue-400 mt-0.5">Confianza IA: {d.aiConfidence}%</p>}
                   </div>
                   {d?.status !== "APPROVED" && (
-                    <Button size="sm" variant={d?.status === "REJECTED" ? "danger" : "ghost"}
-                      loading={isUploading} onClick={() => triggerUpload(doc.type)}>
-                      <Upload size={14} />
-                      {d ? "Reintentar" : "Subir"}
-                    </Button>
+                    <div className="flex gap-2">
+                      {d && (
+                        <Button size="sm" variant="ghost"
+                          loading={deleting === doc.type} onClick={() => handleDelete(d.id, doc.type)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
+                      <Button size="sm" variant={d?.status === "REJECTED" ? "danger" : "ghost"}
+                        loading={isUploading} onClick={() => triggerUpload(doc.type)}>
+                        <Upload size={14} />
+                        {d ? "Reintentar" : "Subir"}
+                      </Button>
+                    </div>
                   )}
                 </Card>
               );

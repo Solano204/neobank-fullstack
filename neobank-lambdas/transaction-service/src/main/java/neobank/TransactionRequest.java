@@ -3,6 +3,8 @@ package neobank;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
+
 public class TransactionRequest {
 
     @JsonProperty("from_account")
@@ -11,7 +13,7 @@ public class TransactionRequest {
     @JsonProperty("to_account")
     private String toAccount;
 
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     private String description;
     private String reference;
@@ -24,8 +26,8 @@ public class TransactionRequest {
     public String getToAccount() { return toAccount; }
     public void setToAccount(String toAccount) { this.toAccount = toAccount; }
 
-    public Double getAmount() { return amount; }
-    public void setAmount(Double amount) { this.amount = amount; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }

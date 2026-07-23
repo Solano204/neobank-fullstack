@@ -1,0 +1,51 @@
+name: Frontend PR checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'neobank-frontend/**'
+      - '.github/workflows/frontend-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: neobank-frontend/neobank-frontend
+
+jobs:
+  build:
+    name: Lint & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: neobank-frontend/neobank-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # next was bumped 15.1.0 -> 15.5.20 to clear a known critical CVE
+      # (GHSA-7m27-7ghc-44w9 and others); this gate now passes clean.
+      - name: Security audit (critical only)
+        run: npm audit --audit-level=critical
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

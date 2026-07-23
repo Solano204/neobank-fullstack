@@ -69,39 +69,15 @@ Thumbs.db
 *.log
 DS_Store
 
-
-# 1. Inicializa Git en la raíz
-
-git init
-
-
-
-# 2. Agrega todos los archivos (El .gitignore filtrará lo pesado y privado)
-
-git add .
-
-
-
-# 3. Primer commit oficial
-
-git commit -m "feat: initial commit neobank monorepo structure"
-
-
-
-# 4. Configura la rama principal
-
-git branch -M main
-
-
-
-# 5. Conecta con tu nuevo repo (Copia la URL que te dio GitHub)
-
-# Reemplaza 'TU_USUARIO' por tu nombre real de GitHub
-
-git remote add origin https://github.com/Solano204/neobank-fullstack.git
-
-
-
-# 6. Sube los archivos
-
-git push -u origin main
+# --- Lambda build artifacts (AWS Lambda deploy zips, Python vendored deps) ---
+*.zip
+**/fraud-checker/build/
+**/fraud-detector/build/
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.venv-test/
+venv/
+.pytest_cache/
+**/*.tsbuildinfo

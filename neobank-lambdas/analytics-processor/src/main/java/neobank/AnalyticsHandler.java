@@ -1,6 +1,7 @@
 package neobank;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.SQSBatchResponse;
 import com.amazonaws.services.lambda.runtime.events.SQSEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
@@ -9,16 +10,15 @@ import software.amazon.awssdk.services.cloudwatch.model.*;
 import java.time.Instant;
 import java.util.*;
 
-public class AnalyticsHandler implements RequestHandler<SQSEvent, String> {
+public class AnalyticsHandler implements RequestHandler<SQSEvent, SQSBatchResponse> {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final CloudWatchClient cloudWatch = CloudWatchClient.create();
     private static final String NAMESPACE = "NeoBank/Transactions";
 
     @Override
-    public String handleRequest(SQSEvent event, Context context) {
-        int successCount = 0;
-        int failureCount = 0;
+    public SQSBatchResponse handleRequest(SQSEvent event, Context context) {
+        List<SQSBatchResponse.BatchItemFailure> failures = new ArrayList<>();
 
         for (SQSEvent.SQSMessage message : event.getRecords()) {
             try {
@@ -28,23 +28,24 @@ public class AnalyticsHandler implements RequestHandler<SQSEvent, String> {
                 );
 
                 publishMetrics(transaction, context);
-                successCount++;
 
                 context.getLogger().log("Metrics published for: " + transaction.get("transaction_id"));
 
             } catch (Exception e) {
-                failureCount++;
                 context.getLogger().log("Error publishing metrics: " + e.getMessage());
                 e.printStackTrace();
+                failures.add(SQSBatchResponse.BatchItemFailure.builder()
+                        .withItemIdentifier(message.getMessageId())
+                        .build());
             }
         }
 
         context.getLogger().log(String.format(
                 "Metrics published. Success: %d, Failures: %d",
-                successCount, failureCount
+                event.getRecords().size() - failures.size(), failures.size()
         ));
 
-        return "SUCCESS";
+        return SQSBatchResponse.builder().withBatchItemFailures(failures).build();
     }
 
     private void publishMetrics(Map<String, Object> transaction, Context context) {
@@ -113,21 +114,21 @@ public class AnalyticsHandler implements RequestHandler<SQSEvent, String> {
         }
     }
 
-    private double calculateAverageTransactionAmount(double currentAmount) {
+    double calculateAverageTransactionAmount(double currentAmount) {
         return currentAmount;
     }
 
-    private String getString(Map<String, Object> map, String key) {
+    String getString(Map<String, Object> map, String key) {
         Object value = map.get(key);
         return value != null ? value.toString() : "";
     }
 
-    private String getString(Map<String, Object> map, String key, String defaultValue) {
+    String getString(Map<String, Object> map, String key, String defaultValue) {
         Object value = map.get(key);
         return value != null ? value.toString() : defaultValue;
     }
 
-    private double getDouble(Map<String, Object> map, String key) {
+    double getDouble(Map<String, Object> map, String key) {
         Object value = map.get(key);
         if (value instanceof Number) {
             return ((Number) value).doubleValue();

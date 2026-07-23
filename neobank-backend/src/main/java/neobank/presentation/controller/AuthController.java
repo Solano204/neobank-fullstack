@@ -82,7 +82,7 @@ public class AuthController {
         log.info("Logout request for user: {}", userPrincipal.getId());
 
         String accessToken = token.substring(7);
-        logoutUseCase.execute(accessToken, null);
+        logoutUseCase.execute(accessToken, userPrincipal.getId());
 
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));
     }
