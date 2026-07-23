@@ -135,6 +135,13 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      # ghcr.io (and Docker/OCI generally) requires an all-lowercase
+      # repository name, but github.repository_owner preserves the account's
+      # actual case (Solano204) - used directly, every tag below failed with
+      # "repository name must be lowercase".
+      - name: Compute lowercase image owner
+        run: echo "IMAGE_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -147,12 +154,12 @@ jobs:
         with:
           context: neobank-lambdas/${{ matrix.lambda }}
           load: true
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.lambda }}:${{ github.sha }}
+          tags: ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:${{ github.sha }}
 
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/${{ matrix.lambda }}:${{ github.sha }}
+          image-ref: ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:${{ github.sha }}
           format: sarif
           output: trivy-${{ matrix.lambda }}.sarif
           severity: CRITICAL,HIGH
@@ -170,11 +177,11 @@ jobs:
           context: neobank-lambdas/${{ matrix.lambda }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.lambda }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.lambda }}:${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:${{ github.sha }}
 
       - name: Install cosign
         uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Sign image (keyless, via GitHub OIDC)
-        run: cosign sign --yes ghcr.io/${{ github.repository_owner }}/${{ matrix.lambda }}:${{ github.sha }}
+        run: cosign sign --yes ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:${{ github.sha }}
