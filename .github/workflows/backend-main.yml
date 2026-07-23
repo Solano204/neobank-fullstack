@@ -111,6 +111,11 @@ jobs:
         with:
           context: neobank-backend
           push: true
+          # See lambdas-main.yml's identical comment: disables the default
+          # provenance attestation, which is implicated in "unknown blob"
+          # push failures when a base layer is inherited from a different
+          # registry than the push target.
+          provenance: false
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/neobank-backend:latest
             ghcr.io/${{ env.IMAGE_OWNER }}/neobank-backend:${{ github.sha }}
