@@ -73,8 +73,12 @@ jobs:
       # boto3.resource('dynamodb') at module import time resolves a region
       # immediately - pytest's collection of test_lambda_function.py imports
       # the module, so with no region configured it failed before any test
-      # could even be collected, let alone run.
+      # could even be collected, let alone run. botocore's env-var provider
+      # reads AWS_DEFAULT_REGION, not AWS_REGION (unlike the AWS SDK for
+      # Java v2, which checks AWS_REGION first) - AWS_REGION alone fixed the
+      # Java lambdas but left this job still failing on the same class of bug.
       AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
