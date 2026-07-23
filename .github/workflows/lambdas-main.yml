@@ -176,6 +176,14 @@ jobs:
         with:
           context: neobank-lambdas/${{ matrix.lambda }}
           push: true
+          # provenance defaults to true, which makes buildx push an extra
+          # attestation manifest referencing layer blobs by digest - failed
+          # with "ERROR: unknown blob" pushing this base image's large
+          # Python runtime layer (inherited from public.ecr.aws, a different
+          # registry than the ghcr.io push target) even though the build
+          # itself succeeded cleanly. Disabling it is the standard fix for
+          # this known buildx/registry interaction.
+          provenance: false
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:latest
             ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.lambda }}:${{ github.sha }}
