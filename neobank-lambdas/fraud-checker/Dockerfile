@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.11
+FROM public.ecr.aws/lambda/python:3.14
 COPY requirements.txt .
 RUN pip install -r requirements.txt -t "${LAMBDA_TASK_ROOT}"
 COPY lambda_function.py "${LAMBDA_TASK_ROOT}"
